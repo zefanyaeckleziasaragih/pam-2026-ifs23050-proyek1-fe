@@ -16,11 +16,11 @@ val localProps = Properties().apply {
 }
 
 android {
-    namespace   = "org.delcom.watchlist"
+    namespace   = "org.delcom.pam_ifs23050_proyek1"
     compileSdk  = 35
 
     defaultConfig {
-        applicationId = "org.delcom.watchlist"
+        applicationId = "org.delcom.pam_ifs23050_proyek1"
         minSdk        = 24
         targetSdk     = 35
         versionCode   = 1

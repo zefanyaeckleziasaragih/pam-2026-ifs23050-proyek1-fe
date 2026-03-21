@@ -52,7 +52,7 @@ fun MovieAddScreen(
     Scaffold(
         snackbarHost = {
             SnackbarHost(snackbarHostState) { data ->
-                org.delcom.watchlist.ui.components.WatchListSnackbar(data) { snackbarHostState.currentSnackbarData?.dismiss() }
+                org.delcom.pam_ifs23050_proyek1.ui.components.WatchListSnackbar(data) { snackbarHostState.currentSnackbarData?.dismiss() }
             }
         },
         topBar = {
