@@ -4,44 +4,30 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.padding
-import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Text
-import androidx.compose.runtime.Composable
-import androidx.compose.ui.Modifier
-import androidx.compose.ui.tooling.preview.Preview
-import org.delcom.pam_ifs23050_proyek1.ui.theme.WatchlistTheme
+import androidx.activity.viewModels
+import dagger.hilt.android.AndroidEntryPoint
+import org.delcom.pam_ifs23050_proyek1.ui.WatchListApp
+import org.delcom.pam_ifs23050_proyek1.ui.theme.WatchListTheme
+import org.delcom.pam_ifs23050_proyek1.ui.viewmodels.AuthViewModel
+import org.delcom.pam_ifs23050_proyek1.ui.viewmodels.MovieViewModel
 
+@AndroidEntryPoint
 class MainActivity : ComponentActivity() {
+
+    private val movieViewModel: MovieViewModel by viewModels()
+    private val authViewModel: AuthViewModel   by viewModels()
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
+        authViewModel.loadTokenFromPreferences()
         setContent {
-            WatchlistTheme {
-                Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
-                    Greeting(
-                        name = "Android",
-                        modifier = Modifier.padding(innerPadding)
-                    )
-                }
+            WatchListTheme {
+                WatchListApp(
+                    movieViewModel = movieViewModel,
+                    authViewModel  = authViewModel
+                )
             }
         }
-    }
-}
-
-@Composable
-fun Greeting(name: String, modifier: Modifier = Modifier) {
-    Text(
-        text = "Hello $name!",
-        modifier = modifier
-    )
-}
-
-@Preview(showBackground = true)
-@Composable
-fun GreetingPreview() {
-    WatchlistTheme {
-        Greeting("Android")
     }
 }
