@@ -11,23 +11,20 @@ import java.util.concurrent.TimeUnit
 import javax.net.ssl.*
 import java.security.cert.X509Certificate
 
-// ── Repository Interface ──────────────────────────────────────────────────────
+// ── Repository Interface ───────────────────────────────────────────────────────
 
 interface IWatchListRepository {
-    // Auth
     suspend fun postRegister(request: RequestAuthRegister): ResponseMessage<ResponseAuthRegister?>
     suspend fun postLogin(request: RequestAuthLogin): ResponseMessage<ResponseAuthLogin?>
     suspend fun postLogout(request: RequestAuthLogout): ResponseMessage<String?>
     suspend fun postRefreshToken(request: RequestAuthRefreshToken): ResponseMessage<ResponseAuthLogin?>
 
-    // User
     suspend fun getUserMe(authToken: String): ResponseMessage<ResponseUser?>
     suspend fun putUserMe(authToken: String, request: RequestUserChange): ResponseMessage<String?>
     suspend fun putUserMePassword(authToken: String, request: RequestUserChangePassword): ResponseMessage<String?>
     suspend fun putUserMePhoto(authToken: String, file: MultipartBody.Part): ResponseMessage<String?>
     suspend fun putUserMeAbout(authToken: String, request: RequestUserAbout): ResponseMessage<String?>
 
-    // Movies
     suspend fun getMovieStats(authToken: String): ResponseMessage<ResponseStats?>
     suspend fun getMovies(
         authToken: String,
@@ -44,7 +41,7 @@ interface IWatchListRepository {
     suspend fun deleteMovie(authToken: String, movieId: String): ResponseMessage<String?>
 }
 
-// ── Repository Implementation ─────────────────────────────────────────────────
+// ── Repository Implementation ──────────────────────────────────────────────────
 
 class WatchListRepository(private val apiService: WatchListApiService) : IWatchListRepository {
 
@@ -84,25 +81,26 @@ class WatchListRepository(private val apiService: WatchListApiService) : IWatchL
     override suspend fun deleteMovie(authToken: String, movieId: String) = safe { apiService.deleteMovie("Bearer $authToken", movieId) }
 }
 
-// ── App Container ─────────────────────────────────────────────────────────────
+// ── App Container ──────────────────────────────────────────────────────────────
 
 interface IWatchListAppContainer {
     val repository: IWatchListRepository
 }
 
 class WatchListAppContainer : IWatchListAppContainer {
+
     private val loggingInterceptor = HttpLoggingInterceptor().apply {
         level = if (BuildConfig.DEBUG) HttpLoggingInterceptor.Level.BODY
         else HttpLoggingInterceptor.Level.NONE
     }
 
-    private val okHttpClient = OkHttpClient.Builder().apply {
-        addInterceptor(loggingInterceptor)
-        connectTimeout(2, TimeUnit.MINUTES)
-        readTimeout(2, TimeUnit.MINUTES)
-        writeTimeout(2, TimeUnit.MINUTES)
-
-        // SSL bypass untuk development (self-signed cert)
+    // FIX: Separated clients — regular API calls get 30s, uploads get 60s.
+    // Previously everything was 2 MINUTES which made uploads FEEL frozen.
+    private fun buildOkHttpClient(
+        connectSec: Long = 15,
+        readSec: Long = 30,
+        writeSec: Long = 60       // upload needs more write time
+    ): OkHttpClient {
         val trustAllCerts = arrayOf<TrustManager>(object : X509TrustManager {
             override fun checkClientTrusted(chain: Array<X509Certificate>, authType: String) {}
             override fun checkServerTrusted(chain: Array<X509Certificate>, authType: String) {}
@@ -110,14 +108,21 @@ class WatchListAppContainer : IWatchListAppContainer {
         })
         val sslContext = SSLContext.getInstance("SSL")
         sslContext.init(null, trustAllCerts, java.security.SecureRandom())
-        sslSocketFactory(sslContext.socketFactory, trustAllCerts[0] as X509TrustManager)
-        hostnameVerifier { _, _ -> true }
-    }.build()
+
+        return OkHttpClient.Builder()
+            .addInterceptor(loggingInterceptor)
+            .connectTimeout(connectSec, TimeUnit.SECONDS)
+            .readTimeout(readSec, TimeUnit.SECONDS)
+            .writeTimeout(writeSec, TimeUnit.SECONDS)
+            .sslSocketFactory(sslContext.socketFactory, trustAllCerts[0] as X509TrustManager)
+            .hostnameVerifier { _, _ -> true }
+            .build()
+    }
 
     private val retrofit = Retrofit.Builder()
         .baseUrl(BuildConfig.BASE_URL)
         .addConverterFactory(GsonConverterFactory.create())
-        .client(okHttpClient)
+        .client(buildOkHttpClient())
         .build()
 
     private val apiService: WatchListApiService by lazy {

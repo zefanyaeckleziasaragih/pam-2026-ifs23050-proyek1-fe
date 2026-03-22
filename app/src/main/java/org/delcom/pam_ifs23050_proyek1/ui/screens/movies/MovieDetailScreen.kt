@@ -5,6 +5,7 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
@@ -36,6 +37,9 @@ import org.delcom.pam_ifs23050_proyek1.helper.RouteHelper
 import org.delcom.pam_ifs23050_proyek1.helper.ToolsHelper
 import org.delcom.pam_ifs23050_proyek1.network.data.ResponseMovieData
 import org.delcom.pam_ifs23050_proyek1.ui.components.*
+import org.delcom.pam_ifs23050_proyek1.ui.theme.CinemaAmber
+import org.delcom.pam_ifs23050_proyek1.ui.theme.CinemaOrange
+import org.delcom.pam_ifs23050_proyek1.ui.theme.CinemaOrangeDeep
 import org.delcom.pam_ifs23050_proyek1.ui.viewmodels.AuthUIState
 import org.delcom.pam_ifs23050_proyek1.ui.viewmodels.AuthViewModel
 import org.delcom.pam_ifs23050_proyek1.ui.viewmodels.MovieActionUIState
@@ -59,7 +63,6 @@ fun MovieDetailScreen(
 
     var isLoading        by remember { mutableStateOf(true) }
     var showDeleteDialog by remember { mutableStateOf(false) }
-    // coverTs berubah setiap upload sukses → paksa Coil reload
     var coverTs          by remember { mutableLongStateOf(System.currentTimeMillis()) }
 
     val movie = (uiState.movie as? MovieUIState.Success)?.data
@@ -82,22 +85,12 @@ fun MovieDetailScreen(
         }
     }
 
-    fun onDelete() {
-        val token = authToken ?: return
-        isLoading = true
-        movieViewModel.deleteMovie(token, movieId)
-    }
+    fun onDelete() { val token = authToken ?: return; isLoading = true; movieViewModel.deleteMovie(token, movieId) }
 
     LaunchedEffect(uiState.movieDelete) {
         when (val s = uiState.movieDelete) {
-            is MovieActionUIState.Success -> {
-                movieViewModel.resetMovieDeleteState()
-                navController.navigate(RouteHelper.MOVIES) { popUpTo(RouteHelper.MOVIES) { inclusive = true } }
-            }
-            is MovieActionUIState.Error -> {
-                snackbarHost.showSnackbar("error|${s.message}")
-                isLoading = false
-            }
+            is MovieActionUIState.Success -> { movieViewModel.resetMovieDeleteState(); navController.navigate(RouteHelper.MOVIES) { popUpTo(RouteHelper.MOVIES) { inclusive = true } } }
+            is MovieActionUIState.Error -> { snackbarHost.showSnackbar("error|${s.message}"); isLoading = false }
             is MovieActionUIState.Loading -> isLoading = true
             else -> {}
         }
@@ -112,20 +105,17 @@ fun MovieDetailScreen(
                 authToken?.let { movieViewModel.getMovieById(it, movieId) }
                 isLoading = false
             }
-            is MovieActionUIState.Error -> {
-                snackbarHost.showSnackbar("error|${s.message}")
-                movieViewModel.resetMovieCoverState()
-                isLoading = false
-            }
+            is MovieActionUIState.Error -> { snackbarHost.showSnackbar("error|${s.message}"); movieViewModel.resetMovieCoverState(); isLoading = false }
             is MovieActionUIState.Loading -> isLoading = true
             else -> {}
         }
     }
 
     if (isLoading || movie == null) {
-        Box(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background), Alignment.Center) {
-            CircularProgressIndicator(color = MaterialTheme.colorScheme.primary)
-        }
+        Box(
+            Modifier.fillMaxSize().background(Brush.verticalGradient(listOf(Color(0xFF0D0800), Color(0xFF1A0F00)))),
+            Alignment.Center
+        ) { CircularProgressIndicator(color = CinemaOrange) }
         return
     }
 
@@ -134,13 +124,17 @@ fun MovieDetailScreen(
         TopBarMenuItem("Hapus Film", Icons.Default.Delete, { showDeleteDialog = true }, isDestructive = true)
     )
 
-    Column(modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)) {
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(Brush.verticalGradient(listOf(Color(0xFF0D0800), Color(0xFF1A0F00))))
+    ) {
         WatchListTopBar(title = movie.title, navController = navController, showBackButton = true, showMenu = true, menuItems = menuItems)
 
         Box(modifier = Modifier.weight(1f)) {
             MovieDetailContent(
-                movie    = movie,
-                coverTs  = coverTs,
+                movie = movie,
+                coverTs = coverTs,
                 onChangeCover = { uri, context ->
                     val token = authToken ?: return@MovieDetailContent
                     isLoading = true
@@ -156,16 +150,24 @@ fun MovieDetailScreen(
     if (showDeleteDialog) {
         AlertDialog(
             onDismissRequest = { showDeleteDialog = false },
-            title = { Text("Hapus Film") },
-            text = { Text("Yakin ingin menghapus \"${movie.title}\" dari watchlist?") },
+            containerColor = Color(0xFF2A1500),
+            shape = RoundedCornerShape(20.dp),
+            title = { Text("Hapus Film", color = Color.White, fontWeight = FontWeight.Bold) },
+            text = { Text("Yakin ingin menghapus \"${movie.title}\" dari watchlist?", color = Color.White.copy(0.7f)) },
             confirmButton = {
-                Button(
-                    onClick = { showDeleteDialog = false; onDelete() },
-                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)
-                ) { Text("Hapus") }
+                Box(
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(10.dp))
+                        .background(Brush.horizontalGradient(listOf(Color(0xFFFF4444), Color(0xFFCC0000))))
+                ) {
+                    Button(
+                        onClick = { showDeleteDialog = false; onDelete() },
+                        colors = ButtonDefaults.buttonColors(containerColor = Color.Transparent)
+                    ) { Text("Hapus", color = Color.White, fontWeight = FontWeight.Bold) }
+                }
             },
             dismissButton = {
-                TextButton(onClick = { showDeleteDialog = false }) { Text("Batal") }
+                TextButton(onClick = { showDeleteDialog = false }) { Text("Batal", color = CinemaAmber) }
             }
         )
     }
@@ -187,9 +189,6 @@ private fun MovieDetailContent(
 
     val status = movie.watchStatus
 
-    // FIX UTAMA: gunakan movie.cover (path relatif dari API) langsung
-    // contoh: "uploads/watchlists/948d07d9-....jpg"
-    // bukan di-generate dari movieId
     val coverUrl = remember(movie.cover, coverTs) {
         ToolsHelper.getMovieImageUrl(movie.cover, coverTs.toString())
     }
@@ -212,77 +211,79 @@ private fun MovieDetailContent(
             modifier = Modifier
                 .fillMaxWidth()
                 .height(300.dp)
-                .background(MaterialTheme.colorScheme.surfaceVariant)
+                .background(Color(0xFF1E0A00))
                 .clickable {
                     imagePicker.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
                 }
         ) {
             when {
-                // 1. Preview lokal setelah user pilih dari galeri
                 pendingUri != null -> {
-                    SubcomposeAsyncImage(
-                        model = pendingUri,
-                        contentDescription = movie.title,
-                        modifier = Modifier.fillMaxSize(),
-                        contentScale = ContentScale.Crop
-                    ) {
+                    SubcomposeAsyncImage(model = pendingUri, contentDescription = movie.title, modifier = Modifier.fillMaxSize(), contentScale = ContentScale.Crop) {
                         when (painter.state) {
-                            is AsyncImagePainter.State.Loading ->
-                                Box(Modifier.fillMaxSize(), Alignment.Center) { CircularProgressIndicator() }
+                            is AsyncImagePainter.State.Loading -> Box(Modifier.fillMaxSize(), Alignment.Center) { CircularProgressIndicator(color = CinemaOrange) }
                             is AsyncImagePainter.State.Error -> LargePlaceholderPoster()
                             else -> SubcomposeAsyncImageContent()
                         }
                     }
                 }
-
-                // 2. Cover dari server — key(coverTs) paksa recreate saat timestamp berubah
                 hasCover -> key(coverTs) {
-                    SubcomposeAsyncImage(
-                        model = coverImageRequest,
-                        contentDescription = movie.title,
-                        modifier = Modifier.fillMaxSize(),
-                        contentScale = ContentScale.Crop
-                    ) {
+                    SubcomposeAsyncImage(model = coverImageRequest, contentDescription = movie.title, modifier = Modifier.fillMaxSize(), contentScale = ContentScale.Crop) {
                         when (painter.state) {
-                            is AsyncImagePainter.State.Loading ->
-                                Box(Modifier.fillMaxSize(), Alignment.Center) {
-                                    CircularProgressIndicator(color = MaterialTheme.colorScheme.primary)
-                                }
+                            is AsyncImagePainter.State.Loading -> Box(Modifier.fillMaxSize(), Alignment.Center) { CircularProgressIndicator(color = CinemaOrange) }
                             is AsyncImagePainter.State.Error -> LargePlaceholderPoster()
                             else -> SubcomposeAsyncImageContent()
                         }
                     }
                 }
-
-                // 3. Belum ada cover
                 else -> LargePlaceholderPoster()
             }
 
+            // Orange gradient overlay
             Box(
-                modifier = Modifier.fillMaxWidth().height(100.dp).align(Alignment.BottomCenter)
-                    .background(Brush.verticalGradient(listOf(Color.Transparent, Color.Black.copy(alpha = 0.5f))))
+                modifier = Modifier.fillMaxWidth().height(120.dp).align(Alignment.BottomCenter)
+                    .background(
+                        Brush.verticalGradient(
+                            listOf(Color.Transparent, Color(0xFF1A0F00).copy(0.95f))
+                        )
+                    )
             )
+
+            // Camera button
             Box(
-                modifier = Modifier.align(Alignment.BottomEnd).padding(12.dp).size(36.dp)
-                    .clip(RoundedCornerShape(50)).background(MaterialTheme.colorScheme.primary.copy(alpha = 0.85f)),
+                modifier = Modifier.align(Alignment.BottomEnd).padding(14.dp)
+                    .size(40.dp)
+                    .clip(RoundedCornerShape(12.dp))
+                    .background(Brush.linearGradient(listOf(CinemaOrange, CinemaOrangeDeep)))
+                    .border(1.dp, CinemaAmber.copy(0.5f), RoundedCornerShape(12.dp)),
                 contentAlignment = Alignment.Center
             ) {
-                Icon(Icons.Default.CameraAlt, contentDescription = "Ganti Poster", tint = Color.White, modifier = Modifier.size(18.dp))
+                Icon(Icons.Default.CameraAlt, "Ganti Poster", tint = Color.White, modifier = Modifier.size(18.dp))
             }
         }
 
-        // ── Action bar pending cover ──────────────────────────────────────────
+        // ── Pending cover action bar ──────────────────────────────────────────
         if (pendingUri != null) {
-            Surface(color = MaterialTheme.colorScheme.primaryContainer, modifier = Modifier.fillMaxWidth()) {
+            Box(
+                modifier = Modifier.fillMaxWidth()
+                    .background(CinemaOrange.copy(0.15f))
+                    .border(1.dp, CinemaOrange.copy(0.3f), RoundedCornerShape(0.dp))
+            ) {
                 Row(
                     modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.SpaceBetween
                 ) {
-                    Text("Poster baru dipilih", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onPrimaryContainer)
+                    Text("Poster baru dipilih", style = MaterialTheme.typography.bodySmall, color = CinemaAmber)
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        TextButton(onClick = { pendingUri = null }) { Text("Batal") }
-                        Button(onClick = { showCoverConfirm = true }) { Text("Simpan") }
+                        TextButton(onClick = { pendingUri = null }) { Text("Batal", color = Color.White.copy(0.6f)) }
+                        Box(
+                            modifier = Modifier.clip(RoundedCornerShape(8.dp))
+                                .background(Brush.horizontalGradient(listOf(CinemaOrange, CinemaOrangeDeep)))
+                        ) {
+                            Button(onClick = { showCoverConfirm = true }, colors = ButtonDefaults.buttonColors(containerColor = Color.Transparent)) {
+                                Text("Simpan", color = Color.White, fontWeight = FontWeight.Bold)
+                            }
+                        }
                     }
                 }
             }
@@ -293,12 +294,33 @@ private fun MovieDetailContent(
             modifier = Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 20.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween) {
-                Text(movie.title, style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onBackground, modifier = Modifier.weight(1f))
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Text(
+                    movie.title,
+                    style = MaterialTheme.typography.headlineMedium,
+                    fontWeight = FontWeight.ExtraBold,
+                    color = Color.White,
+                    modifier = Modifier.weight(1f)
+                )
                 if (movie.releaseYear != null) {
-                    Spacer(Modifier.width(8.dp))
-                    Surface(color = MaterialTheme.colorScheme.primary.copy(alpha = 0.12f), shape = RoundedCornerShape(8.dp)) {
-                        Text(movie.releaseYear!!, style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary, modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp))
+                    Spacer(Modifier.width(10.dp))
+                    Box(
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(8.dp))
+                            .background(CinemaOrange.copy(0.2f))
+                            .border(1.dp, CinemaOrange.copy(0.5f), RoundedCornerShape(8.dp))
+                    ) {
+                        Text(
+                            movie.releaseYear!!,
+                            style = MaterialTheme.typography.labelLarge,
+                            fontWeight = FontWeight.ExtraBold,
+                            color = CinemaAmber,
+                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp)
+                        )
                     }
                 }
             }
@@ -306,18 +328,20 @@ private fun MovieDetailContent(
             WatchStatusBadge(status = status)
 
             if (movie.cleanDescription.isNotBlank()) {
-                HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.3f))
+                Box(modifier = Modifier.fillMaxWidth().height(1.dp).background(CinemaOrange.copy(0.2f)))
                 Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                    Text("Deskripsi", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant, fontWeight = FontWeight.SemiBold)
-                    Text(movie.cleanDescription, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onBackground, lineHeight = 22.sp)
+                    Text("Deskripsi", style = MaterialTheme.typography.labelMedium, color = CinemaAmber, fontWeight = FontWeight.Bold)
+                    Text(movie.cleanDescription, style = MaterialTheme.typography.bodyMedium, color = Color.White.copy(0.7f), lineHeight = 22.sp)
                 }
             }
 
-            HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.3f))
+            Box(modifier = Modifier.fillMaxWidth().height(1.dp).background(CinemaOrange.copy(0.2f)))
+
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(16.dp)) {
                 MetaInfoItem("Ditambahkan", movie.createdAt.take(10), Modifier.weight(1f))
                 MetaInfoItem("Terakhir diubah", movie.updatedAt.take(10), Modifier.weight(1f))
             }
+
             Spacer(Modifier.height(16.dp))
         }
     }
@@ -325,17 +349,23 @@ private fun MovieDetailContent(
     if (showCoverConfirm && pendingUri != null) {
         AlertDialog(
             onDismissRequest = { showCoverConfirm = false },
-            title = { Text("Ganti Poster?") },
-            text = { Text("Poster akan dikompres sebelum diunggah. Lanjutkan?") },
+            containerColor = Color(0xFF2A1500),
+            shape = RoundedCornerShape(20.dp),
+            title = { Text("Ganti Poster?", color = Color.White, fontWeight = FontWeight.Bold) },
+            text = { Text("Poster akan dikompres sebelum diunggah. Lanjutkan?", color = Color.White.copy(0.7f)) },
             confirmButton = {
-                Button(onClick = {
-                    showCoverConfirm = false
-                    pendingUri?.let { onChangeCover(it, context) }
-                    pendingUri = null
-                }) { Text("Ya, Simpan") }
+                Box(
+                    modifier = Modifier.clip(RoundedCornerShape(10.dp))
+                        .background(Brush.horizontalGradient(listOf(CinemaOrange, CinemaOrangeDeep)))
+                ) {
+                    Button(
+                        onClick = { showCoverConfirm = false; pendingUri?.let { onChangeCover(it, context) }; pendingUri = null },
+                        colors = ButtonDefaults.buttonColors(containerColor = Color.Transparent)
+                    ) { Text("Ya, Simpan", color = Color.White, fontWeight = FontWeight.Bold) }
+                }
             },
             dismissButton = {
-                TextButton(onClick = { showCoverConfirm = false; pendingUri = null }) { Text("Batal") }
+                TextButton(onClick = { showCoverConfirm = false; pendingUri = null }) { Text("Batal", color = CinemaAmber) }
             }
         )
     }
@@ -343,18 +373,32 @@ private fun MovieDetailContent(
 
 @Composable
 private fun LargePlaceholderPoster() {
-    Box(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.surfaceVariant), Alignment.Center) {
-        Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            Icon(Icons.Default.Movie, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f), modifier = Modifier.size(64.dp))
-            Text("Tap untuk menambahkan poster", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f), textAlign = TextAlign.Center)
+    Box(
+        Modifier.fillMaxSize().background(Color(0xFF1E0A00)),
+        Alignment.Center
+    ) {
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(10.dp)
+        ) {
+            Icon(Icons.Default.Movie, null, tint = CinemaOrange.copy(0.3f), modifier = Modifier.size(64.dp))
+            Text("Tap untuk menambahkan poster", style = MaterialTheme.typography.bodySmall, color = CinemaOrange.copy(0.4f), textAlign = TextAlign.Center)
         }
     }
 }
 
 @Composable
 private fun MetaInfoItem(label: String, value: String, modifier: Modifier = Modifier) {
-    Column(modifier = modifier, verticalArrangement = Arrangement.spacedBy(2.dp)) {
-        Text(label, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-        Text(value, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onBackground, fontWeight = FontWeight.Medium)
+    Box(
+        modifier = modifier
+            .clip(RoundedCornerShape(10.dp))
+            .background(Color(0xFF2A1500))
+            .border(1.dp, CinemaOrange.copy(0.15f), RoundedCornerShape(10.dp))
+            .padding(10.dp)
+    ) {
+        Column(verticalArrangement = Arrangement.spacedBy(3.dp)) {
+            Text(label, style = MaterialTheme.typography.labelSmall, color = CinemaAmber.copy(0.7f))
+            Text(value, style = MaterialTheme.typography.bodySmall, color = Color.White, fontWeight = FontWeight.SemiBold)
+        }
     }
 }

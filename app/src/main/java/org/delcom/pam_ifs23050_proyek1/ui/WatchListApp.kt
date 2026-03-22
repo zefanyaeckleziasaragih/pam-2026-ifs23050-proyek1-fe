@@ -4,7 +4,6 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
@@ -15,6 +14,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.navigation.NavHostController
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
@@ -47,28 +47,41 @@ fun WatchListApp(
     val authState = uiStateAuth.auth
     val authToken = (authState as? AuthUIState.Success)?.data?.authToken ?: ""
 
+    // KEY FIX: Read navController.currentDestination?.route INSIDE the lambda,
+    // not outside. Reading it outside causes stale closure — the route value
+    // captured at composition time may already be outdated when the effect runs.
     LaunchedEffect(authState) {
+        val route = navController.currentDestination?.route
         when (authState) {
-            is AuthUIState.Error -> navController.navigate(RouteHelper.LOGIN) {
-                popUpTo(0) { inclusive = true }; launchSingleTop = true
-            }
-            is AuthUIState.Success -> {
-                val route = navController.currentDestination?.route
-                if (route == null || route == RouteHelper.LOGIN || route == RouteHelper.REGISTER) {
-                    navController.navigate(RouteHelper.HOME) {
-                        popUpTo(0) { inclusive = true }; launchSingleTop = true
+            is AuthUIState.Error -> {
+                if (route != RouteHelper.LOGIN && route != RouteHelper.REGISTER) {
+                    navController.navigate(RouteHelper.LOGIN) {
+                        popUpTo(0) { inclusive = true }
+                        launchSingleTop = true
                     }
                 }
             }
-            else -> {}
+            is AuthUIState.Success -> {
+                if (route == RouteHelper.LOGIN || route == RouteHelper.REGISTER || route == null) {
+                    navController.navigate(RouteHelper.HOME) {
+                        popUpTo(0) { inclusive = true }
+                        launchSingleTop = true
+                    }
+                }
+            }
+            else -> { /* Loading — spinner shown below, don't navigate */ }
         }
     }
 
     if (authState is AuthUIState.Loading) {
         Box(
-            modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background),
+            modifier = Modifier
+                .fillMaxSize()
+                .background(Color(0xFF0D0800)),
             contentAlignment = Alignment.Center
-        ) { CircularProgressIndicator(color = MaterialTheme.colorScheme.primary) }
+        ) {
+            CircularProgressIndicator(color = Color(0xFFFF6B00))
+        }
         return
     }
 
@@ -82,7 +95,9 @@ fun WatchListApp(
         NavHost(
             navController = navController,
             startDestination = RouteHelper.HOME,
-            modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)
+            modifier = Modifier
+                .fillMaxSize()
+                .background(Color(0xFF0D0800))
         ) {
             composable(RouteHelper.LOGIN) {
                 LoginScreen(navController, snackbarHostState, authViewModel)

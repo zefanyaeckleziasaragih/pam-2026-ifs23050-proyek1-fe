@@ -1,6 +1,7 @@
 package org.delcom.pam_ifs23050_proyek1.ui.components
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -12,6 +13,8 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -22,11 +25,9 @@ import coil.compose.SubcomposeAsyncImage
 import coil.compose.SubcomposeAsyncImageContent
 import org.delcom.pam_ifs23050_proyek1.helper.ToolsHelper
 import org.delcom.pam_ifs23050_proyek1.network.data.ResponseMovieData
+import org.delcom.pam_ifs23050_proyek1.ui.theme.CinemaAmber
+import org.delcom.pam_ifs23050_proyek1.ui.theme.CinemaOrange
 
-/**
- * Movie list item — poster thumbnail di kiri, info di kanan.
- * coverUrl tidak lagi diterima dari luar; dibangun dari movie.cover langsung.
- */
 @Composable
 fun MovieItemUI(
     movie: ResponseMovieData,
@@ -37,19 +38,27 @@ fun MovieItemUI(
     var showDeleteDialog by remember { mutableStateOf(false) }
     val status = movie.watchStatus
 
-    // Bangun URL dari path cover yang dikembalikan API
-    // Contoh: movie.cover = "uploads/watchlists/948d07d9-....jpg"
     val coverUrl = remember(movie.cover, movie.updatedAt) {
         ToolsHelper.getMovieImageUrl(movie.cover, movie.updatedAt)
     }
 
-    Card(
+    Box(
         modifier = modifier
             .fillMaxWidth()
-            .clickable { onClick() },
-        shape = RoundedCornerShape(12.dp),
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
+            .clip(RoundedCornerShape(16.dp))
+            .background(
+                Brush.verticalGradient(
+                    listOf(Color(0xFF2A1500), Color(0xFF1E0F00))
+                )
+            )
+            .border(
+                1.dp,
+                Brush.horizontalGradient(
+                    listOf(CinemaOrange.copy(0.3f), Color.Transparent, CinemaOrange.copy(0.1f))
+                ),
+                RoundedCornerShape(16.dp)
+            )
+            .clickable { onClick() }
     ) {
         Row(
             modifier = Modifier
@@ -60,10 +69,10 @@ fun MovieItemUI(
             // ── Poster ────────────────────────────────────────────────────────
             Box(
                 modifier = Modifier
-                    .width(70.dp)
-                    .height(100.dp)
-                    .clip(RoundedCornerShape(topStart = 12.dp, bottomStart = 12.dp))
-                    .background(MaterialTheme.colorScheme.surfaceVariant),
+                    .width(72.dp)
+                    .height(108.dp)
+                    .clip(RoundedCornerShape(topStart = 16.dp, bottomStart = 16.dp))
+                    .background(Color(0xFF3D1800)),
                 contentAlignment = Alignment.Center
             ) {
                 if (coverUrl != null) {
@@ -76,11 +85,7 @@ fun MovieItemUI(
                         when (painter.state) {
                             is AsyncImagePainter.State.Loading -> {
                                 Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                                    CircularProgressIndicator(
-                                        modifier = Modifier.size(20.dp),
-                                        strokeWidth = 2.dp,
-                                        color = MaterialTheme.colorScheme.primary
-                                    )
+                                    CircularProgressIndicator(modifier = Modifier.size(20.dp), strokeWidth = 2.dp, color = CinemaOrange)
                                 }
                             }
                             is AsyncImagePainter.State.Error -> PlaceholderPoster()
@@ -90,6 +95,19 @@ fun MovieItemUI(
                 } else {
                     PlaceholderPoster()
                 }
+
+                // Orange tint overlay on bottom of poster
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(24.dp)
+                        .align(Alignment.BottomCenter)
+                        .background(
+                            Brush.verticalGradient(
+                                listOf(Color.Transparent, CinemaOrange.copy(0.25f))
+                            )
+                        )
+                )
             }
 
             // ── Info ──────────────────────────────────────────────────────────
@@ -104,27 +122,27 @@ fun MovieItemUI(
                     fontWeight = FontWeight.Bold,
                     maxLines = 2,
                     overflow = TextOverflow.Ellipsis,
-                    color = MaterialTheme.colorScheme.onSurface
+                    color = Color.White
                 )
 
                 if (movie.releaseYear != null) {
-                    Spacer(Modifier.height(2.dp))
+                    Spacer(Modifier.height(3.dp))
                     Text(
                         text = movie.releaseYear!!,
                         style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.primary,
-                        fontWeight = FontWeight.Medium
+                        color = CinemaAmber,
+                        fontWeight = FontWeight.Bold
                     )
                 }
 
                 if (movie.cleanDescription.isNotBlank()) {
-                    Spacer(Modifier.height(4.dp))
+                    Spacer(Modifier.height(5.dp))
                     Text(
                         text = movie.cleanDescription,
                         style = MaterialTheme.typography.bodySmall,
                         maxLines = 2,
                         overflow = TextOverflow.Ellipsis,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                        color = Color.White.copy(0.5f)
                     )
                 }
 
@@ -140,7 +158,7 @@ fun MovieItemUI(
                 Icon(
                     Icons.Default.Delete,
                     contentDescription = "Hapus",
-                    tint = MaterialTheme.colorScheme.error,
+                    tint = Color(0xFFFF6B6B).copy(0.7f),
                     modifier = Modifier.size(18.dp)
                 )
             }
@@ -150,15 +168,19 @@ fun MovieItemUI(
     if (showDeleteDialog) {
         AlertDialog(
             onDismissRequest = { showDeleteDialog = false },
-            title = { Text("Hapus Film") },
-            text = { Text("Yakin ingin menghapus \"${movie.title}\" dari watchlist?") },
+            containerColor = Color(0xFF2A1500),
+            shape = RoundedCornerShape(20.dp),
+            title = { Text("Hapus Film", color = Color.White, fontWeight = FontWeight.Bold) },
+            text = { Text("Yakin ingin menghapus \"${movie.title}\" dari watchlist?", color = Color.White.copy(0.7f)) },
             confirmButton = {
                 TextButton(onClick = { showDeleteDialog = false; onDelete() }) {
-                    Text("Hapus", color = MaterialTheme.colorScheme.error)
+                    Text("Hapus", color = Color(0xFFFF6B6B), fontWeight = FontWeight.Bold)
                 }
             },
             dismissButton = {
-                TextButton(onClick = { showDeleteDialog = false }) { Text("Batal") }
+                TextButton(onClick = { showDeleteDialog = false }) {
+                    Text("Batal", color = CinemaAmber)
+                }
             }
         )
     }
@@ -174,14 +196,10 @@ fun PlaceholderPoster() {
         Icon(
             Icons.Default.Movie,
             contentDescription = null,
-            tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
+            tint = CinemaOrange.copy(alpha = 0.4f),
             modifier = Modifier.size(28.dp)
         )
-        Spacer(Modifier.height(2.dp))
-        Text(
-            "No Poster",
-            fontSize = 8.sp,
-            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f)
-        )
+        Spacer(Modifier.height(3.dp))
+        Text("No Poster", fontSize = 8.sp, color = CinemaOrange.copy(alpha = 0.3f))
     }
 }

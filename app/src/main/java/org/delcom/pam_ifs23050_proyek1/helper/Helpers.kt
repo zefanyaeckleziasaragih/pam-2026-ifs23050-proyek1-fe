@@ -13,25 +13,11 @@ import org.delcom.pam_ifs23050_proyek1.BuildConfig
 import java.io.ByteArrayOutputStream
 
 object ToolsHelper {
-    /**
-     * Bangun URL cover film.
-     * Backend mengembalikan field `cover` berisi path relatif, contoh:
-     *   "uploads/watchlists/948d07d9-....jpg"
-     * Jadi URL lengkapnya = BASE_URL + cover
-     *
-     * Parameter [coverPath] = nilai `movie.cover` dari API (bisa null/blank → return null).
-     * Parameter [t] = cache-buster timestamp.
-     */
     fun getMovieImageUrl(coverPath: String?, t: String = "0"): String? {
         if (coverPath.isNullOrBlank()) return null
         return "${BuildConfig.BASE_URL}$coverPath?t=$t"
     }
 
-    /**
-     * URL foto profil user.
-     * Pola path profil diasumsikan sama: BASE_URL + path relatif dari field photo user.
-     * Jika backend belum mengembalikan field photo, pakai fallback userId.
-     */
     fun getUserImageUrl(photoPath: String?, userId: String, t: String = "0"): String {
         return if (!photoPath.isNullOrBlank()) {
             "${BuildConfig.BASE_URL}$photoPath?t=$t"
@@ -42,9 +28,12 @@ object ToolsHelper {
 }
 
 object ImageCompressHelper {
-    private const val MAX_WIDTH  = 1080
-    private const val MAX_HEIGHT = 1080
-    private const val QUALITY    = 80
+    // FIX: Reduced from 1080x1080 → 720x720, quality 80→65
+    // A 720p JPEG at quality 65 is ~80-150KB — perfectly fine for a poster thumbnail
+    // and uploads ~3-5x faster than a 1080p at quality 80 (~400-600KB)
+    private const val MAX_WIDTH  = 720
+    private const val MAX_HEIGHT = 720
+    private const val QUALITY    = 65
 
     fun uriToCompressedMultipart(context: Context, uri: Uri, partName: String): MultipartBody.Part {
         val bytes = compressImage(context, uri)
@@ -56,7 +45,7 @@ object ImageCompressHelper {
         val opts = BitmapFactory.Options().apply { inJustDecodeBounds = true }
         context.contentResolver.openInputStream(uri)?.use { BitmapFactory.decodeStream(it, null, opts) }
 
-        opts.inSampleSize = calculateInSampleSize(opts, MAX_WIDTH, MAX_HEIGHT)
+        opts.inSampleSize    = calculateInSampleSize(opts, MAX_WIDTH, MAX_HEIGHT)
         opts.inJustDecodeBounds = false
 
         var bitmap = context.contentResolver.openInputStream(uri)!!.use {
